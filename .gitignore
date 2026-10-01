@@ -1,0 +1,15 @@
+# Build output
+.build/
+.swiftpm/
+dist/
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+
+# Icon working files; Resources/AppIcon.icns and docs/icon.png are committed
+icon/out/
+
+# Editor and OS noise
+.DS_Store
+.idea/
+.vscode/

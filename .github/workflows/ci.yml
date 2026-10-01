@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-and-build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check shell syntax
+        run: bash -n scripts/*.sh icon/*.sh
+      - name: Unit tests
+        run: swift test
+      - name: Build universal app
+        run: ./scripts/build.sh
+      - name: Probe the controls (reads only, changes nothing)
+        run: dist/Curtain.app/Contents/MacOS/Curtain --probe
+      - name: Redraw the icon
+        run: swift icon/make-icon.swift icon.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: icon
+          path: icon.png
