@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 — 2026-10-02
 
 - **Let Apps and Agents Type and Click** (While Closed menu): with Accessibility access,
   only the physical keyboard, trackpad and mouse are blocked while the curtain is closed,
