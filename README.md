@@ -14,6 +14,9 @@ everything keeps running underneath. Press **Esc** and it all comes back.
 
 - **Only Esc opens it.** Other keys, clicks, the trackpad and Command–Tab are swallowed,
   so nothing you brush against wakes the screen or types into a hidden window.
+- **Agents keep working.** With Accessibility access, only the *physical* keyboard,
+  trackpad and mouse are blocked. Clicks and keystrokes that software posts (automation,
+  AI agents, scripts) still reach the apps behind the curtain.
 - **Really dark.** Every display is covered in black, above the menu bar, the Dock,
   full-screen apps and notifications, and the pointer is hidden. Built-in and Apple
   displays also go to zero brightness, and the keyboard backlight turns off.
@@ -35,7 +38,9 @@ everything keeps running underneath. Press **Esc** and it all comes back.
 4. Press **Control + Option + C** (or choose **Close Curtain** from the menu). Press **Esc** to open it.
 
 The download is signed by Laldinsoft Ltd and notarized by Apple, so it opens normally. No
-permissions are needed. To update, download the new version and replace the app in
+permissions are needed for the curtain itself; to let apps and agents keep typing and
+clicking behind it, choose **While Closed ▸ Let Apps and Agents Type and Click** and allow
+Curtain in Privacy & Security ▸ Accessibility. To update, download the new version and replace the app in
 Applications. To uninstall, quit Curtain from its menu and move it to the Trash.
 
 ## Using it
@@ -47,6 +52,7 @@ Applications. To uninstall, quit Curtain from its menu and move it to the Trash.
 | While Closed ▸ Turn Off Keyboard Light | on by default; greyed out on a Mac without a backlit keyboard |
 | While Closed ▸ Dim the Display | on by default; takes brightness to zero as well as covering the screen |
 | While Closed ▸ Keep Mac Awake | on by default; off lets macOS sleep and lock as usual |
+| While Closed ▸ Let Apps and Agents Type and Click | on once Curtain has Accessibility access; until then all input, software included, is blocked |
 | Launch at Login | from the menu |
 
 ### What it does and doesn't do
@@ -62,8 +68,16 @@ uses the same private frameworks as Control Centre (CoreBrightness and DisplaySe
 looked up at run time: if a future macOS changes them, those switches grey out and the
 curtain stays black. This is also why Curtain is distributed here, not on the Mac App Store.
 
-The power button and Touch ID still work as usual, and the brightness keys still change
-brightness (the screen stays black until Esc).
+With Accessibility access, Curtain drops every event that comes from the keyboard,
+trackpad or mouse hardware (except Esc) before macOS acts on it, including system shortcuts
+and the brightness and media keys, and passes on every event that a process posted. Screen
+Sharing and other remote control also count as software and get through. The covers then
+let clicks through to the apps underneath, and the app that was in front keeps the keyboard.
+If the access is withdrawn while the curtain is closed, it falls back to blocking all input
+within a couple of seconds, so Esc always works.
+
+The power button and Touch ID still work as usual, and without Accessibility access the
+brightness keys still change brightness (the screen stays black until Esc).
 
 ## Build from source
 

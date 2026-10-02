@@ -39,6 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             refreshMenu()
         }
         menu.onToggleLogin = { [unowned self] in toggleLogin() }
+        menu.onSoftwareInput = { InputGuard.requestAccess() }
         menu.onAbout = {
             NSApp.activate()
             NSApp.orderFrontStandardAboutPanel(options: [
@@ -89,6 +90,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu?.update(options: options, keyboardAvailable: curtain.keyboardLightAvailable,
                      displayAvailable: curtain.displayDimmingAvailable)
         menu?.updateLoginItem(enabled: LoginItemManager.isEnabled, requiresApproval: LoginItemManager.needsApproval)
+        menu?.updateSoftwareInput(allowed: InputGuard.hasAccess)
     }
 
     private func toggleLogin() {

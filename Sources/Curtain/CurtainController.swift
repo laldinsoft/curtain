@@ -10,6 +10,10 @@ final class CurtainController {
     private var fadeID = 0
     private var reassert: Timer?
     private var cursorHidden = false
+    /// Physical input is stopped by `input`, so the covers let software clicks and keys through.
+    private var guardsInput = false
+    private var watchdog: Timer?
+    private let input = InputGuard()
     private let keyboard = KeyboardBacklight()
     private let display = DisplayBrightness()
     private let power = PowerAssertion()
@@ -21,7 +25,10 @@ final class CurtainController {
     static let closeFade: TimeInterval = 0.6
     static let openFade: TimeInterval = 0.35
 
-    init(shortcuts: GlobalShortcutManager) { self.shortcuts = shortcuts }
+    init(shortcuts: GlobalShortcutManager) {
+        self.shortcuts = shortcuts
+        input.onEscape = { [weak self] in self?.wake() }
+    }
 
     var phase: CurtainPhase { machine.phase }
     var keyboardLightAvailable: Bool { keyboard.isAvailable }
@@ -73,11 +80,23 @@ final class CurtainController {
         }
         if !record.isEmpty { try? store.save(record) }
 
-        shortcuts.registerEscape()
+        // With Accessibility access, only the physical keyboard, trackpad and mouse are stopped and
+        // apps and agents keep working underneath; without it, the covers take all input themselves.
+        guardsInput = input.start()
+        if guardsInput {
+            // If the tap stops working (access revoked while closed), fall back rather than leave Esc dead.
+            watchdog = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { _ in
+                MainActor.assumeIsolated { [weak self] in
+                    guard let self, guardsInput, !input.isWorking else { return }
+                    takeAllInput()
+                }
+            }
+        } else {
+            shortcuts.registerEscape()
+        }
         if opts.keepAwake { power.hold() }
         buildWindows(alpha: 0)
-        NSApp.activate()
-        NSApp.presentationOptions = [.hideDock, .hideMenuBar, .disableProcessSwitching, .disableHideApplication, .disableAppleMenu]
+        if !guardsInput { takeFocus() }
         hideCursor()
         fade(to: 1, duration: Self.closeFade)
     }
@@ -98,6 +117,7 @@ final class CurtainController {
     }
 
     private func startOpening() {
+        stopGuarding()
         shortcuts.unregisterEscape()
         reassert?.invalidate(); reassert = nil
         if let record = store.load() { restore(record) }
@@ -107,6 +127,7 @@ final class CurtainController {
 
     private func tearDown() {
         reassert?.invalidate(); reassert = nil
+        stopGuarding()
         shortcuts.unregisterEscape()
         for window in windows { window.orderOut(nil) }
         windows = []
@@ -120,6 +141,34 @@ final class CurtainController {
         for k in record.keyboards { keyboard.apply(.init(id: k.id, brightness: k.brightness, autoBrightness: k.autoBrightness)) }
     }
 
+    // MARK: - Input
+
+    private func stopGuarding() {
+        watchdog?.invalidate(); watchdog = nil
+        input.stop()
+        guardsInput = false
+    }
+
+    /// The fallback: the covers take the keyboard and every click, and Carbon catches Esc.
+    private func takeAllInput() {
+        stopGuarding()
+        shortcuts.registerEscape()
+        for window in windows { window.ignoresMouseEvents = false }
+        takeFocus()
+        makeKey()
+    }
+
+    private func takeFocus() {
+        NSApp.activate()
+        NSApp.presentationOptions = [.hideDock, .hideMenuBar, .disableProcessSwitching, .disableHideApplication, .disableAppleMenu]
+    }
+
+    /// The window under the pointer (or the first) takes the keyboard, so typing goes nowhere.
+    private func makeKey() {
+        let mouse = NSEvent.mouseLocation
+        (windows.first { $0.frame.contains(mouse) } ?? windows.first)?.makeKeyAndOrderFront(nil)
+    }
+
     // MARK: - Covers
 
     private func buildWindows(alpha: CGFloat) {
@@ -128,12 +177,13 @@ final class CurtainController {
             let window = CurtainWindow(screen: screen)
             window.alphaValue = alpha
             window.onEscape = { [weak self] in self?.wake() }
+            // Software clicks reach the apps underneath; the hardware's never get this far.
+            window.ignoresMouseEvents = guardsInput
             window.orderFrontRegardless()
             return window
         }
-        // The window under the pointer (or the first) takes the keyboard, so typing goes nowhere.
-        let mouse = NSEvent.mouseLocation
-        (windows.first { $0.frame.contains(mouse) } ?? windows.first)?.makeKeyAndOrderFront(nil)
+        // Leave the keyboard with the app underneath when software is meant to type into it.
+        if !guardsInput { makeKey() }
     }
 
     /// Screens added, removed or rearranged while closed get their own cover.
@@ -146,15 +196,15 @@ final class CurtainController {
     func didWake() {
         guard machine.phase == .closed else { return }
         buildWindows(alpha: 1)
-        NSApp.activate()
+        if !guardsInput { NSApp.activate() }
         applyDarkLevels()
     }
 
     /// If something else takes focus while closed, take it back.
     func appResignedActive() {
-        guard machine.isCovering else { return }
+        guard machine.isCovering, !guardsInput else { return }
         DispatchQueue.main.async {
-            guard self.machine.isCovering else { return }
+            guard self.machine.isCovering, !self.guardsInput else { return }
             NSApp.activate()
             (self.windows.first { $0.isKeyWindow } ?? self.windows.first)?.makeKeyAndOrderFront(nil)
         }
@@ -178,8 +228,20 @@ final class CurtainController {
 
     private func hideCursor() {
         guard !cursorHidden else { return }
+        _ = Self.cursorHidesInBackground
         NSCursor.hide(); cursorHidden = true
     }
+
+    /// Curtain is not the active app while software input is let through, and macOS normally shows the
+    /// pointer again for a background app. This private WindowServer switch keeps it hidden.
+    private static let cursorHidesInBackground: Void = {
+        typealias Connection = @convention(c) () -> Int32
+        typealias SetProperty = @convention(c) (Int32, Int32, CFString, CFTypeRef) -> Int32
+        guard let main = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "_CGSDefaultConnection"),
+              let set = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGSSetConnectionProperty") else { return }
+        let connection = unsafeBitCast(main, to: Connection.self)()
+        _ = unsafeBitCast(set, to: SetProperty.self)(connection, connection, "SetsCursorInBackground" as CFString, kCFBooleanTrue)
+    }()
 
     private func showCursor() {
         guard cursorHidden else { return }

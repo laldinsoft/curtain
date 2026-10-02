@@ -2,8 +2,8 @@ import AppKit
 import CurtainCore
 
 /// A black, borderless panel over one screen, above everything including the menu bar, the Dock,
-/// full-screen apps and notifications. It takes the keyboard without activating the app, swallows
-/// every key, click and scroll, and hands Esc to `onEscape`.
+/// full-screen apps and notifications. When `InputGuard` is not running it takes the keyboard without
+/// activating the app, swallows every key, click and scroll, and hands Esc to `onEscape`.
 final class CurtainWindow: NSPanel {
     var onEscape: (() -> Void)?
 

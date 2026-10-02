@@ -9,10 +9,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private let keyboard = NSMenuItem(title: "Turn Off Keyboard Light", action: nil, keyEquivalent: "")
     private let dim = NSMenuItem(title: "Dim the Display", action: nil, keyEquivalent: "")
     private let awake = NSMenuItem(title: "Keep Mac Awake", action: nil, keyEquivalent: "")
+    private let software = NSMenuItem(title: "Let Apps and Agents Type and Click", action: nil, keyEquivalent: "")
     private let login = NSMenuItem(title: "Launch at Login", action: nil, keyEquivalent: "")
     var onClose: (() -> Void)?
     var onToggleOption: ((CurtainOptions.Key) -> Void)?
     var onToggleLogin: (() -> Void)?
+    var onSoftwareInput: (() -> Void)?
     var onAbout: (() -> Void)?
     var onQuit: (() -> Void)?
     var onOpenMenu: (() -> Void)?
@@ -46,6 +48,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             menu.addItem(entry)
         }
         awake.toolTip = "Stops the Mac sleeping or locking behind the curtain, so only Esc brings the screen back."
+        software.target = self
+        software.action = #selector(softwareInput)
+        software.indentationLevel = 1
+        menu.addItem(software)
         menu.addItem(.separator())
         login.target = self
         login.action = #selector(toggleLogin)
@@ -76,6 +82,14 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         awake.state = options.keepAwake ? .on : .off
     }
 
+    func updateSoftwareInput(allowed: Bool) {
+        software.state = allowed ? .on : .off
+        software.title = allowed ? "Let Apps and Agents Type and Click" : "Let Apps and Agents Type and Click — Needs Access…"
+        software.toolTip = allowed
+            ? "Only the physical keyboard, trackpad and mouse are blocked; software and agents keep typing and clicking. Turn off in Privacy & Security ▸ Accessibility."
+            : "Give Curtain Accessibility access so software and agents can keep working while closed. Until then, all input is blocked."
+    }
+
     func updateLoginItem(enabled: Bool, requiresApproval: Bool) {
         login.state = enabled ? .on : (requiresApproval ? .mixed : .off)
         login.title = requiresApproval ? "Launch at Login — Approval Needed…" : "Launch at Login"
@@ -93,6 +107,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         onToggleOption?(key)
     }
     @objc private func toggleLogin() { onToggleLogin?() }
+    @objc private func softwareInput() { onSoftwareInput?() }
     @objc private func showAbout() { onAbout?() }
     @objc private func quitApp() { onQuit?() }
 }
