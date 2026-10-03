@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0 — 2026-10-03
+
+- The first release built, signed, notarized and published by GitHub Actions
+  from the `v0.3.0` tag. The app is unchanged from 0.2.0.
+
 ## 0.2.0 — 2026-10-02
 
 - **Let Apps and Agents Type and Click** (While Closed menu): with Accessibility access,
